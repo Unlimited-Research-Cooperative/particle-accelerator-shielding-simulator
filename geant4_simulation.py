@@ -12,7 +12,9 @@ class MySensitiveDetector(G4VSensitiveDetector):
         self.total_energy_deposited = 0
 
     def ProcessHits(self, step, touchable_history):
-        self.total_energy_deposited += step.GetTotalEnergyDeposit()
+        energy_deposited = step.GetTotalEnergyDeposit()
+        self.total_energy_deposited += energy_deposited
+        print(f"Energy deposited in this step: {energy_deposited} MeV")
         return True
 
     def GetTotalEnergyDeposited(self):
@@ -103,6 +105,7 @@ class MyEventAction(G4UserEventAction):
 
     def EndOfEventAction(self, event):
         self.total_energy_deposited += self.detector.GetTotalEnergyDeposited()
+        print(f"Total energy deposited so far: {self.total_energy_deposited} MeV")
 
     def GetTotalEnergyDeposited(self):
         return self.total_energy_deposited
@@ -147,7 +150,7 @@ def run_simulation_instance(photon_energy, shielding_thickness, density):
 
     ui_manager = G4UImanager.GetUIpointer()
     ui_manager.ApplyCommand("/run/initialize")
-    ui_manager.ApplyCommand("/run/beamOn 1000000")  # Increase the number of events
+    ui_manager.ApplyCommand("/run/beamOn 10000")  # Start with a smaller number of events for debugging
 
     total_energy_deposited = sensitive_detector.GetTotalEnergyDeposited()
     
@@ -181,29 +184,47 @@ def run_visualization():
     ui = G4UIExecutive(len(sys.argv), sys.argv)
     UImanager = G4UImanager.GetUIpointer()
     UImanager.ApplyCommand("/vis/open OGL")
-    UImanager.ApplyCommand("/vis/viewer/set/viewpointThetaPhi 90 0")
+    UImanager.ApplyCommand("/vis/viewer/set/viewpointThetaPhi 70 20")
     UImanager.ApplyCommand("/vis/drawVolume")
+    UImanager.ApplyCommand("/vis/viewer/set/autorefresh true")
     UImanager.ApplyCommand("/vis/scene/add/trajectories smooth")
     UImanager.ApplyCommand("/vis/scene/endOfEventAction accumulate")
-    UImanager.ApplyCommand("/run/initialize")
-
+    UImanager.ApplyCommand("/tracking/verbose 1")
     ui.SessionStart()
-    visManager.Finalize()
 
 if __name__ == "__main__":
-    photon_energy = 6.0 * MeV
-    shielding_thickness = 68.0 * cm
-    density = 2.35  # g/cm^3
-    initial_dose_rate = 600  # cGy/min
-    num_events = 1000000  # Increase the number of events
+    # This part will only run when the script is executed directly, not when imported as a module
+    from PyQt5.QtWidgets import QApplication
+    import sys
 
-    total_energy_deposited = run_simulation(photon_energy, shielding_thickness, density)
-    attenuation = calculate_attenuation(total_energy_deposited, photon_energy, num_events)
-    dose_rate = calculate_dose_rate(total_energy_deposited, initial_dose_rate, photon_energy, num_events)
+    app = QApplication(sys.argv)
+    window = QWidget()
+    layout = QVBoxLayout()
 
-    print(f"Total energy deposited: {total_energy_deposited} MeV")
-    print(f"Attenuation: {attenuation:.6f}")
-    print(f"Attenuated dose rate: {dose_rate:.2f} cGy/min")
+    button = QPushButton("Run Simulation")
+    layout.addWidget(button)
 
-    # Visualization part
-    run_visualization()
+    result_label = QLabel("Simulation results will appear here")
+    layout.addWidget(result_label)
+
+    progress_bar = QProgressBar()
+    layout.addWidget(progress_bar)
+
+    window.setLayout(layout)
+    window.setWindowTitle("Geant4 Simulation GUI")
+    window.resize(400, 300)
+
+    def on_run_simulation():
+        photon_energy = 1.0 * MeV  # Example energy, replace with actual input
+        shielding_thickness = 10.0 * cm  # Example thickness, replace with actual input
+        density = 2.35  # Example density, replace with actual input
+        total_energy_deposited = run_simulation(photon_energy, shielding_thickness, density)
+        attenuation = calculate_attenuation(total_energy_deposited, photon_energy, 10000)
+        dose_rate = calculate_dose_rate(total_energy_deposited, 1.0, photon_energy, 10000)
+        result_label.setText(f"Attenuation: {attenuation}\nDose rate: {dose_rate}")
+
+    button.clicked.connect(on_run_simulation)
+    window.show()
+
+    sys.exit(app.exec_())
+

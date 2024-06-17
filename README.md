@@ -21,7 +21,10 @@
 <br>
 <br>
 
-WIP, new project
+Work in progress...
+
+To use software, run python3 geant4_simulation_gui.py
+
 
 
 ## 🤝 Connect
